@@ -108,9 +108,8 @@ fn main() {
         return;
     }
     
-    let fields: Vec<String> = matches.opt_str("f").map(|s| {
-        s.split(',').map(|s| s.to_string()).collect()
-    }).unwrap_or(vec!(String::from("all")));
+    let fields: Vec<String> = matches.opt_str("f").unwrap_or(String::from("all"))
+            .split(',').map(|s| String::from(s)).collect();
 
     for file in matches.free {
         process(&fields, &file);
