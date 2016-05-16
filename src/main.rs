@@ -23,7 +23,7 @@ struct LogLine {
 
 type ParseError = &'static str;
 
-fn parse(line: &str) -> Result<LogLine,ParseError> {
+fn parse_line(line: &str) -> Result<LogLine,ParseError> {
     // 127.0.0.1 user-identifier frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326
     // 1         2               3     4                            5                             6   7
     lazy_static! {
@@ -48,26 +48,17 @@ fn parse(line: &str) -> Result<LogLine,ParseError> {
     return Ok(result);
 }
 
-fn parse_lines<B : BufRead>(lines: io::Lines<B>) -> Vec<Result<LogLine,ParseError>> {
-    lines.map(|result| {
-        match result {
-            Ok(s) => { parse(&s) }
-            Err(_) => { Err("io error") }
-        }
-    }).collect()
-}
-
 fn process(file: &str) {
     match File::open(file) {
         Ok(f) => {
             let r = io::BufReader::new(f);
-            let parsed_lines = parse_lines(r.lines());
-            println!("parsed line count: {}", parsed_lines.len());
-            for pl in parsed_lines {
-                if let Ok(pl) = pl {
-                    println!("{0}|{1}|{2}", pl.ip_address, pl.timestamp, pl.request_line);
+            for line in r.lines() {
+                if let Ok(s) = line {
+                    let parse_result = parse_line(&s);
+                    if let Ok(pl) = parse_result {
+                        println!("{0}|{1}|{2}", pl.ip_address, pl.timestamp, pl.request_line);
+                    }
                 }
-                
             }
         }
         Err(e) => {
