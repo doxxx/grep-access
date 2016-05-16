@@ -50,7 +50,7 @@ fn parse_line(line: &str) -> Result<LogLine,ParseError> {
     return Ok(result);
 }
 
-fn process(fields: &Vec<String>, file: &str) {
+fn process(fields: &Vec<String>, delimiter: &str, file: &str) {
     match File::open(file) {
         Ok(f) => {
             let r = io::BufReader::new(f);
@@ -60,8 +60,6 @@ fn process(fields: &Vec<String>, file: &str) {
                     if let Ok(pl) = parse_result {
                         for field in fields {
                             match field.as_str() {
-                                "all" => print!("{0} {1} {2} {3} {4} {5} {6}", 
-                                        pl.ip_address, pl.identity, pl.user, pl.timestamp, pl.request_line, pl.status_code, pl.size),
                                 "address" => print!("{0}", pl.ip_address),
                                 "identity" => print!("{0}", pl.identity),
                                 "user" => print!("{0}", pl.user),
@@ -71,7 +69,7 @@ fn process(fields: &Vec<String>, file: &str) {
                                 "size" => print!("{0}", pl.size),
                                 _ => {}
                             }
-                            print!(" ");
+                            print!("{}", delimiter);
                         }
                         println!("");
                     }
@@ -92,9 +90,12 @@ fn print_usage(program: &str, opts: Options) {
 fn main() {
     let args: Vec<String> = env::args().collect();
     let program = args[0].clone();
+    
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help menu");
-    opts.opt("f", "filter", "comma-separated list of fields to display: all, address, identity, user, timestamp, request, status, size", "<FIELDS>", HasArg::Yes, Occur::Optional);
+    opts.opt("f", "filter", "comma-separated list of fields to display: address, identity, user, timestamp, request, status, size", "<FIELDS>", HasArg::Yes, Occur::Optional);
+    opts.opt("d", "delimiter", "delimiter used to separate fields", "<DELIMITER>", HasArg::Yes, Occur::Optional);
+    
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
         Err(e) => {
@@ -108,10 +109,14 @@ fn main() {
         return;
     }
     
-    let fields: Vec<String> = matches.opt_str("f").unwrap_or(String::from("all"))
+    let default_fields = String::from("address,identity,user,timestamp,request,status,size");
+    let default_delimiter = String::from("|");
+    
+    let fields: Vec<String> = matches.opt_str("f").unwrap_or(default_fields)
             .split(',').map(|s| String::from(s)).collect();
+    let delimiter: String = matches.opt_str("d").unwrap_or(default_delimiter);
 
     for file in matches.free {
-        process(&fields, &file);
+        process(&fields, &delimiter, &file);
     }
 }
