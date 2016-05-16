@@ -1,0 +1,9 @@
+[package]
+name = "http_access_analyzer"
+version = "0.1.0"
+authors = ["Gordon Tyler <gordon@doxxx.net>"]
+
+[dependencies]
+getopts = "0.2"
+regex = "0.1"
+lazy_static = "0.2"
