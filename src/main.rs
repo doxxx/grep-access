@@ -71,6 +71,7 @@ fn process(fields: &Vec<String>, file: &str) {
                                 "size" => print!("{0}", pl.size),
                                 _ => {}
                             }
+                            print!(" ");
                         }
                         println!("");
                     }
