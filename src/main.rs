@@ -8,6 +8,8 @@ use std::io;
 use std::fs::File;
 
 use getopts::Options;
+use getopts::HasArg;
+use getopts::Occur;
 
 use regex::Regex;
 
@@ -27,7 +29,7 @@ fn parse_line(line: &str) -> Result<LogLine,ParseError> {
     // 127.0.0.1 user-identifier frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326
     // 1         2               3     4                            5                             6   7
     lazy_static! {
-        static ref LINE_RE: Regex = Regex::new("^(.+?) (.+?) (.+?) \\[(.+?)\\] \"(.+?)\" (.+?) (.+?)").unwrap();
+        static ref LINE_RE: Regex = Regex::new("^(.+?) (.+?) (.+?) \\[(.+?)\\] \"(.+?)\" (.+?) (.+?)( |$)").unwrap();
     }
     
     let parts = LINE_RE.captures(line).unwrap();
@@ -48,7 +50,7 @@ fn parse_line(line: &str) -> Result<LogLine,ParseError> {
     return Ok(result);
 }
 
-fn process(file: &str) {
+fn process(fields: &Vec<String>, file: &str) {
     match File::open(file) {
         Ok(f) => {
             let r = io::BufReader::new(f);
@@ -56,7 +58,21 @@ fn process(file: &str) {
                 if let Ok(s) = line {
                     let parse_result = parse_line(&s);
                     if let Ok(pl) = parse_result {
-                        println!("{0}|{1}|{2}", pl.ip_address, pl.timestamp, pl.request_line);
+                        for field in fields {
+                            match field.as_str() {
+                                "all" => print!("{0} {1} {2} {3} {4} {5} {6}", 
+                                        pl.ip_address, pl.identity, pl.user, pl.timestamp, pl.request_line, pl.status_code, pl.size),
+                                "address" => print!("{0}", pl.ip_address),
+                                "identity" => print!("{0}", pl.identity),
+                                "user" => print!("{0}", pl.user),
+                                "timestamp" => print!("{0}", pl.timestamp),
+                                "request" => print!("{0}", pl.request_line),
+                                "status" => print!("{0}", pl.status_code),
+                                "size" => print!("{0}", pl.size),
+                                _ => {}
+                            }
+                        }
+                        println!("");
                     }
                 }
             }
@@ -77,6 +93,7 @@ fn main() {
     let program = args[0].clone();
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help menu");
+    opts.opt("f", "filter", "comma-separated list of fields to display: all, address, identity, user, timestamp, request, status, size", "<FIELDS>", HasArg::Yes, Occur::Optional);
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
         Err(e) => {
@@ -89,8 +106,12 @@ fn main() {
         print_usage(&program, opts);
         return;
     }
+    
+    let fields: Vec<String> = matches.opt_str("f").map(|s| {
+        s.split(',').map(|s| s.to_string()).collect()
+    }).unwrap_or(vec!(String::from("all")));
 
     for file in matches.free {
-        process(&file);
+        process(&fields, &file);
     }
 }
