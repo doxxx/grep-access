@@ -93,8 +93,8 @@ fn main() {
     
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help menu");
-    opts.opt("f", "filter", "comma-separated list of fields to display: address, identity, user, timestamp, request, status, size", "<FIELDS>", HasArg::Yes, Occur::Optional);
-    opts.opt("d", "delimiter", "delimiter used to separate fields", "<DELIMITER>", HasArg::Yes, Occur::Optional);
+    opts.opt("f", "fields", "comma-separated list of fields to display: address, identity, user, timestamp, request, status, size; defaults to all", "<FIELDS>", HasArg::Yes, Occur::Optional);
+    opts.opt("d", "delimiter", "delimiter used to separate fields; defaults to '|'", "<DELIMITER>", HasArg::Yes, Occur::Optional);
     
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
