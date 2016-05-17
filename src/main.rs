@@ -90,7 +90,7 @@ fn parse_line(line: &str) -> Result<LogLine,ParseError> {
     return Ok(result);
 }
 
-fn process(fields: &Vec<String>, delimiter: &str, greps: &Vec<Grep>, file: &str) {
+fn process(fields: &Vec<String>, delimiter: &str, greps: &Vec<Grep>, quote: &str, file: &str) {
     match File::open(file) {
         Ok(f) => {
             let r = io::BufReader::new(f);
@@ -102,13 +102,13 @@ fn process(fields: &Vec<String>, delimiter: &str, greps: &Vec<Grep>, file: &str)
                         if greps.is_empty() || grep_matches {
                             for field in fields {
                                 match field.as_str() {
-                                "address" => print!("{0}", pl.ip_address),
-                                "identity" => print!("{0}", pl.identity),
-                                "user" => print!("{0}", pl.user),
-                                "timestamp" => print!("{0}", pl.timestamp),
-                                "request" => print!("{0}", pl.request_line),
-                                "status" => print!("{0}", pl.status_code),
-                                "size" => print!("{0}", pl.size),
+                                "address" => print!("{1}{0}{1}", pl.ip_address, quote),
+                                "identity" => print!("{1}{0}{1}", pl.identity, quote),
+                                "user" => print!("{1}{0}{1}", pl.user, quote),
+                                "timestamp" => print!("{1}{0}{1}", pl.timestamp, quote),
+                                "request" => print!("{1}{0}{1}", pl.request_line, quote),
+                                "status" => print!("{1}{0}{1}", pl.status_code, quote),
+                                "size" => print!("{1}{0}{1}", pl.size, quote),
                                     _ => {}
                                 }
                                 print!("{}", delimiter);
@@ -138,6 +138,7 @@ fn main() {
     opts.optflag("h", "help", "print this help menu");
     opts.opt("f", "fields", "comma-separated list of fields to display: address, identity, user, timestamp, request, status, size; defaults to all", "<FIELDS>", HasArg::Yes, Occur::Optional);
     opts.opt("d", "delimiter", "delimiter used to separate fields; defaults to '|'", "<DELIMITER>", HasArg::Yes, Occur::Optional);
+    opts.opt("q", "quote", "quote fields; defaults to not quoting", "<QUOTECHAR>", HasArg::Yes, Occur::Optional);
     opts.opt("g", "grep", "outputs only those lines which match the given regex for the given field; multiple options are AND'ed together'", "<FIELD:REGEX>", HasArg::Yes, Occur::Multi);
     
     let matches = match opts.parse(&args[1..]) {
@@ -155,11 +156,12 @@ fn main() {
     
     let default_fields = String::from("address,identity,user,timestamp,request,status,size");
     let default_delimiter = String::from("|");
+    let default_quote = String::from("");
     
-    let fields: Vec<String> = matches.opt_str("f").unwrap_or(default_fields)
-            .split(',').map(|s| String::from(s)).collect();
+    let fields: Vec<String> = matches.opt_str("f").unwrap_or(default_fields).split(',').map(|s| String::from(s)).collect();
     let delimiter: String = matches.opt_str("d").unwrap_or(default_delimiter);
     let greps: Vec<Result<Grep,ParseError>> = matches.opt_strs("g").iter().map(|s| parse_grep(&s)).collect();
+    let quote: String = matches.opt_str("q").unwrap_or(default_quote);
     
     if greps.iter().any(|g| g.is_err()) {
         println!("{}: invalid grep option", program);
@@ -169,6 +171,6 @@ fn main() {
     let greps: Vec<Grep> = greps.into_iter().map(|r| r.unwrap()).collect();
     
     for file in matches.free {
-        process(&fields, &delimiter, &greps, &file);
+        process(&fields, &delimiter, &greps, &quote, &file);
     }
 }
