@@ -26,6 +26,28 @@ struct LogLine {
     user_agent: String
 }
 
+#[derive(Debug)]
+enum Error {
+    NoSuchField
+}
+
+impl LogLine {
+    fn get_field(&self, field: &str) -> Result<&str,Error> {
+        match field {
+            "address" => Ok(&self.ip_address),
+            "identity" => Ok(&self.identity),
+            "user" => Ok(&self.user),
+            "timestamp" => Ok(&self.timestamp),
+            "request" => Ok(&self.request_line),
+            "status" => Ok(&self.status_code),
+            "size" => Ok(&self.size),
+            "referer" => Ok(&self.referer),
+            "user_agent" => Ok(&self.user_agent),
+            _ => Err(Error::NoSuchField)
+        }
+    }
+}
+
 struct Grep {
     field: String,
     pattern: Regex
@@ -52,18 +74,7 @@ fn parse_grep(s: &str) -> Result<Grep,ParseError> {
 
 impl Grep {
     fn matches(&self, pl: &LogLine) -> bool {
-        match self.field.as_str() {
-            "address" => self.pattern.is_match(pl.ip_address.as_str()),
-            "identity" => self.pattern.is_match(pl.identity.as_str()),
-            "user" => self.pattern.is_match(pl.user.as_str()),
-            "timestamp" => self.pattern.is_match(pl.timestamp.as_str()),
-            "request" => self.pattern.is_match(pl.request_line.as_str()),
-            "status" => self.pattern.is_match(fmt::format(format_args!("{}", pl.status_code)).as_str()),
-            "size" => self.pattern.is_match(fmt::format(format_args!("{}", pl.size)).as_str()),
-            "referer" => self.pattern.is_match(pl.referer.as_str()),
-            "user_agent" => self.pattern.is_match(pl.user_agent.as_str()),
-            _ => panic!("unrecognized grep field")
-        }
+        pl.get_field(&self.field).map(|v| self.pattern.is_match(v)).expect("invalid grep field")
     }
 }
 
@@ -96,6 +107,10 @@ fn parse_line(line: &str) -> Result<LogLine,ParseError> {
     return Ok(result);
 }
 
+fn quoted_field(pl: &LogLine, field: &str, quote: &str) -> String {
+    String::from(pl.get_field(field).map(|v| fmt::format(format_args!("{1}{0}{1}", v, quote))).expect("invalid field"))
+}
+
 fn process(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, file: &str) {
     match File::open(file) {
         Ok(f) => {
@@ -107,18 +122,7 @@ fn process(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, file
                         let grep_matches = greps.iter().all(|g| g.matches(&pl));
                         if greps.is_empty() || grep_matches {
                             for field in fields {
-                                match field.as_str() {
-                                    "address" => print!("{1}{0}{1}", pl.ip_address, quote),
-                                    "identity" => print!("{1}{0}{1}", pl.identity, quote),
-                                    "user" => print!("{1}{0}{1}", pl.user, quote),
-                                    "timestamp" => print!("{1}{0}{1}", pl.timestamp, quote),
-                                    "request" => print!("{1}{0}{1}", pl.request_line, quote),
-                                    "status" => print!("{1}{0}{1}", pl.status_code, quote),
-                                    "size" => print!("{1}{0}{1}", pl.size, quote),
-                                    "referer" => print!("{1}{0}{1}", pl.referer, quote),
-                                    "user_agent" => print!("{1}{0}{1}", pl.user_agent, quote),
-                                    _ => {}
-                                }
+                                print!("{}", quoted_field(&pl, field, quote));
                                 print!("{}", delimiter);
                             }
                             println!("");
