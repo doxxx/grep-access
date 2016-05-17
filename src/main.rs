@@ -96,7 +96,7 @@ fn parse_line(line: &str) -> Result<LogLine,ParseError> {
     return Ok(result);
 }
 
-fn process(fields: &Vec<String>, delimiter: &str, greps: &Vec<Grep>, quote: &str, file: &str) {
+fn process(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, file: &str) {
     match File::open(file) {
         Ok(f) => {
             let r = io::BufReader::new(f);
