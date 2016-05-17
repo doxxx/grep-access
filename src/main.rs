@@ -6,6 +6,7 @@ use std::env;
 use std::io::prelude::*;
 use std::io;
 use std::fs::File;
+use std::fmt;
 
 use getopts::Options;
 use getopts::HasArg;
@@ -21,6 +22,45 @@ struct LogLine {
     request_line: String,
     status_code: u16,
     size: u64
+}
+
+struct Grep {
+    field: String,
+    pattern: Regex
+}
+
+fn parse_grep(s: &str) -> Result<Grep,ParseError> {
+    let fp = s.find(':')
+     .map(|i| s.split_at(i))
+     .ok_or("invalid grep option")
+     .map(|(f,p)| (f,&p[1..]));
+    
+    let grep = fp.and_then(|(field, pattern)| {
+         Regex::new(&pattern).map(|r| {
+             Grep {
+                 field: String::from(field),
+                 pattern: r
+             }
+         })
+         .map_err(|e| "Invalid grep option")
+     });
+     
+     grep
+}
+
+impl Grep {
+    fn matches(&self, pl: &LogLine) -> bool {
+        match self.field.as_str() {
+            "address" => self.pattern.is_match(pl.ip_address.as_str()),
+            "identity" => self.pattern.is_match(pl.identity.as_str()),
+            "user" => self.pattern.is_match(pl.user.as_str()),
+            "timestamp" => self.pattern.is_match(pl.timestamp.as_str()),
+            "request" => self.pattern.is_match(pl.request_line.as_str()),
+            "status" => self.pattern.is_match(fmt::format(format_args!("{}", pl.status_code)).as_str()),
+            "size" => self.pattern.is_match(fmt::format(format_args!("{}", pl.size)).as_str()),
+            _ => panic!("unrecognized grep field")
+        }
+    }
 }
 
 type ParseError = &'static str;
@@ -50,7 +90,7 @@ fn parse_line(line: &str) -> Result<LogLine,ParseError> {
     return Ok(result);
 }
 
-fn process(fields: &Vec<String>, delimiter: &str, file: &str) {
+fn process(fields: &Vec<String>, delimiter: &str, greps: &Vec<Grep>, file: &str) {
     match File::open(file) {
         Ok(f) => {
             let r = io::BufReader::new(f);
@@ -58,8 +98,10 @@ fn process(fields: &Vec<String>, delimiter: &str, file: &str) {
                 if let Ok(s) = line {
                     let parse_result = parse_line(&s);
                     if let Ok(pl) = parse_result {
-                        for field in fields {
-                            match field.as_str() {
+                        let grep_matches = greps.iter().all(|g| g.matches(&pl));
+                        if greps.is_empty() || grep_matches {
+                            for field in fields {
+                                match field.as_str() {
                                 "address" => print!("{0}", pl.ip_address),
                                 "identity" => print!("{0}", pl.identity),
                                 "user" => print!("{0}", pl.user),
@@ -67,11 +109,12 @@ fn process(fields: &Vec<String>, delimiter: &str, file: &str) {
                                 "request" => print!("{0}", pl.request_line),
                                 "status" => print!("{0}", pl.status_code),
                                 "size" => print!("{0}", pl.size),
-                                _ => {}
+                                    _ => {}
+                                }
+                                print!("{}", delimiter);
                             }
-                            print!("{}", delimiter);
+                            println!("");
                         }
-                        println!("");
                     }
                 }
             }
@@ -95,6 +138,7 @@ fn main() {
     opts.optflag("h", "help", "print this help menu");
     opts.opt("f", "fields", "comma-separated list of fields to display: address, identity, user, timestamp, request, status, size; defaults to all", "<FIELDS>", HasArg::Yes, Occur::Optional);
     opts.opt("d", "delimiter", "delimiter used to separate fields; defaults to '|'", "<DELIMITER>", HasArg::Yes, Occur::Optional);
+    opts.opt("g", "grep", "outputs only those lines which match the given regex for the given field; multiple options are AND'ed together'", "<FIELD:REGEX>", HasArg::Yes, Occur::Multi);
     
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => { m }
@@ -115,8 +159,16 @@ fn main() {
     let fields: Vec<String> = matches.opt_str("f").unwrap_or(default_fields)
             .split(',').map(|s| String::from(s)).collect();
     let delimiter: String = matches.opt_str("d").unwrap_or(default_delimiter);
-
+    let greps: Vec<Result<Grep,ParseError>> = matches.opt_strs("g").iter().map(|s| parse_grep(&s)).collect();
+    
+    if greps.iter().any(|g| g.is_err()) {
+        println!("{}: invalid grep option", program);
+        return;
+    }
+    
+    let greps: Vec<Grep> = greps.into_iter().map(|r| r.unwrap()).collect();
+    
     for file in matches.free {
-        process(&fields, &delimiter, &file);
+        process(&fields, &delimiter, &greps, &file);
     }
 }
