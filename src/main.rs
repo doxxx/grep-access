@@ -21,7 +21,9 @@ struct LogLine {
     timestamp: String,
     request_line: String,
     status_code: u16,
-    size: u64
+    size: u64,
+    referer: String,
+    user_agent: String
 }
 
 struct Grep {
@@ -58,6 +60,8 @@ impl Grep {
             "request" => self.pattern.is_match(pl.request_line.as_str()),
             "status" => self.pattern.is_match(fmt::format(format_args!("{}", pl.status_code)).as_str()),
             "size" => self.pattern.is_match(fmt::format(format_args!("{}", pl.size)).as_str()),
+            "referer" => self.pattern.is_match(pl.referer.as_str()),
+            "user_agent" => self.pattern.is_match(pl.user_agent.as_str()),
             _ => panic!("unrecognized grep field")
         }
     }
@@ -66,10 +70,10 @@ impl Grep {
 type ParseError = &'static str;
 
 fn parse_line(line: &str) -> Result<LogLine,ParseError> {
-    // 127.0.0.1 user-identifier frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326
-    // 1         2               3     4                            5                             6   7
+    // 127.0.0.1 user-identifier frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "referer" "user-agent"
+    // 1         2               3     4                            5                             6   7    8          9
     lazy_static! {
-        static ref LINE_RE: Regex = Regex::new("^(.+?) (.+?) (.+?) \\[(.+?)\\] \"(.+?)\" (.+?) (.+?)( |$)").unwrap();
+        static ref LINE_RE: Regex = Regex::new("^(.+?) (.+?) (.+?) \\[(.+?)\\] \"(.+?)\" (.+?) (.+?)(?: \"(.+?)\")?(?: \"(.+?)\")?$").unwrap();
     }
     
     let parts = LINE_RE.captures(line).unwrap();
@@ -84,7 +88,9 @@ fn parse_line(line: &str) -> Result<LogLine,ParseError> {
         timestamp: String::from(parts.at(4).unwrap()),
         request_line: String::from(parts.at(5).unwrap()),
         status_code: parts[6].parse().unwrap_or(0),
-        size: parts[7].parse().unwrap_or(0)
+        size: parts[7].parse().unwrap_or(0),
+        referer: String::from(parts.at(8).unwrap_or("")),
+        user_agent: String::from(parts.at(9).unwrap_or("")),
     };
     
     return Ok(result);
@@ -109,6 +115,8 @@ fn process(fields: &Vec<String>, delimiter: &str, greps: &Vec<Grep>, quote: &str
                                     "request" => print!("{1}{0}{1}", pl.request_line, quote),
                                     "status" => print!("{1}{0}{1}", pl.status_code, quote),
                                     "size" => print!("{1}{0}{1}", pl.size, quote),
+                                    "referer" => print!("{1}{0}{1}", pl.referer, quote),
+                                    "user_agent" => print!("{1}{0}{1}", pl.user_agent, quote),
                                     _ => {}
                                 }
                                 print!("{}", delimiter);
@@ -136,7 +144,7 @@ fn main() {
     
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help menu");
-    opts.opt("f", "fields", "comma-separated list of fields to display: address, identity, user, timestamp, request, status, size; defaults to all", "<FIELDS>", HasArg::Yes, Occur::Optional);
+    opts.opt("f", "fields", "comma-separated list of fields to display: address, identity, user, timestamp, request, status, size, referer, user_agent; defaults to all", "<FIELDS>", HasArg::Yes, Occur::Optional);
     opts.opt("d", "delimiter", "delimiter used to separate fields; defaults to '|'", "<DELIMITER>", HasArg::Yes, Occur::Optional);
     opts.opt("q", "quote", "quote fields; defaults to not quoting", "<QUOTECHAR>", HasArg::Yes, Occur::Optional);
     opts.opt("g", "grep", "outputs only those lines which match the given regex for the given field; multiple options are AND'ed together'", "<FIELD:REGEX>", HasArg::Yes, Occur::Multi);
@@ -154,7 +162,7 @@ fn main() {
         return;
     }
     
-    let default_fields = String::from("address,identity,user,timestamp,request,status,size");
+    let default_fields = String::from("address,identity,user,timestamp,request,status,size,referer,user_agent");
     let default_delimiter = String::from("|");
     let default_quote = String::from("");
     
