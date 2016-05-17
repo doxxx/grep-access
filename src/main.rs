@@ -121,11 +121,15 @@ fn process(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, file
                     if let Ok(pl) = parse_result {
                         let grep_matches = greps.iter().all(|g| g.matches(&pl));
                         if greps.is_empty() || grep_matches {
-                            for field in fields {
-                                print!("{}", quoted_field(&pl, field, quote));
-                                print!("{}", delimiter);
-                            }
-                            println!("");
+                            let output_line = fields.iter().fold(String::new(), |acc, field| {
+                                if acc.len() > 0 {
+                                    acc + delimiter + quoted_field(&pl, field, quote).as_str()
+                                }
+                                else {
+                                    quoted_field(&pl, field, quote)
+                                }
+                            });
+                            println!("{0}", output_line);
                         }
                     }
                 }
