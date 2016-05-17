@@ -20,8 +20,8 @@ struct LogLine {
     user: String,
     timestamp: String,
     request_line: String,
-    status_code: u16,
-    size: u64,
+    status_code: String,
+    size: String,
     referer: String,
     user_agent: String
 }
@@ -87,8 +87,8 @@ fn parse_line(line: &str) -> Result<LogLine,ParseError> {
         user: String::from(parts.at(3).unwrap()),
         timestamp: String::from(parts.at(4).unwrap()),
         request_line: String::from(parts.at(5).unwrap()),
-        status_code: parts[6].parse().unwrap_or(0),
-        size: parts[7].parse().unwrap_or(0),
+        status_code: String::from(parts.at(6).unwrap()),
+        size: String::from(parts.at(7).unwrap()),
         referer: String::from(parts.at(8).unwrap_or("")),
         user_agent: String::from(parts.at(9).unwrap_or("")),
     };
