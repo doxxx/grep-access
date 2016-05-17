@@ -102,13 +102,13 @@ fn process(fields: &Vec<String>, delimiter: &str, greps: &Vec<Grep>, quote: &str
                         if greps.is_empty() || grep_matches {
                             for field in fields {
                                 match field.as_str() {
-                                "address" => print!("{1}{0}{1}", pl.ip_address, quote),
-                                "identity" => print!("{1}{0}{1}", pl.identity, quote),
-                                "user" => print!("{1}{0}{1}", pl.user, quote),
-                                "timestamp" => print!("{1}{0}{1}", pl.timestamp, quote),
-                                "request" => print!("{1}{0}{1}", pl.request_line, quote),
-                                "status" => print!("{1}{0}{1}", pl.status_code, quote),
-                                "size" => print!("{1}{0}{1}", pl.size, quote),
+                                    "address" => print!("{1}{0}{1}", pl.ip_address, quote),
+                                    "identity" => print!("{1}{0}{1}", pl.identity, quote),
+                                    "user" => print!("{1}{0}{1}", pl.user, quote),
+                                    "timestamp" => print!("{1}{0}{1}", pl.timestamp, quote),
+                                    "request" => print!("{1}{0}{1}", pl.request_line, quote),
+                                    "status" => print!("{1}{0}{1}", pl.status_code, quote),
+                                    "size" => print!("{1}{0}{1}", pl.size, quote),
                                     _ => {}
                                 }
                                 print!("{}", delimiter);
