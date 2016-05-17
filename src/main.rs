@@ -126,7 +126,7 @@ fn process(fields: &Vec<String>, delimiter: &str, greps: &Vec<Grep>, quote: &str
 }
 
 fn print_usage(program: &str, opts: Options) {
-    let brief = format!("Usage: {} [options]", program);
+    let brief = format!("Usage: {} [options] <file> [<file>...]", program);
     print!("{}", opts.usage(&brief));
 }
 
