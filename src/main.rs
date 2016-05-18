@@ -6,7 +6,6 @@ use std::env;
 use std::io::prelude::*;
 use std::io;
 use std::fs::File;
-use std::fmt;
 
 use getopts::Options;
 use getopts::HasArg;
@@ -108,7 +107,7 @@ fn parse_line(line: &str) -> Result<LogLine,ParseError> {
 }
 
 fn quoted_field(pl: &LogLine, field: &str, quote: &str) -> String {
-    String::from(pl.get_field(field).map(|v| fmt::format(format_args!("{1}{0}{1}", v, quote))).expect("invalid field"))
+    String::from(pl.get_field(field).map(|v| format!("{1}{0}{1}", v, quote)).expect("invalid field"))
 }
 
 fn process(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, file: &str) {
