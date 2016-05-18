@@ -110,29 +110,43 @@ fn quoted_field(pl: &LogLine, field: &str, quote: &str) -> String {
     String::from(pl.get_field(field).map(|v| format!("{1}{0}{1}", v, quote)).expect("invalid field"))
 }
 
-fn process(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, file: &str) {
+fn join_fields(fields: &[String], delimiter: &str, quote: &str, pl: LogLine) -> String {
+    fields.iter().fold(String::new(), |acc, field| {
+        if acc.len() > 0 {
+            acc + delimiter + quoted_field(&pl, field, quote).as_str()
+        }
+        else {
+            quoted_field(&pl, field, quote)
+        }
+    })    
+}
+
+fn process_line(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, pl: LogLine) {
+    let grep_matches = greps.iter().all(|g| g.matches(&pl));
+    if greps.is_empty() || grep_matches {
+        let output_line = join_fields(fields, delimiter, quote, pl);
+        println!("{0}", output_line);
+    }
+}
+
+fn process_lines<B>(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, lines: io::Lines<B>)
+    where B : BufRead+Sized 
+{
+    for line in lines {
+        if let Ok(s) = line {
+            let parse_result = parse_line(&s);
+            if let Ok(pl) = parse_result {
+                process_line(fields, delimiter, greps, quote, pl)
+            }
+        }
+    }
+}
+
+fn process_file(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, file: &str) {
     match File::open(file) {
         Ok(f) => {
             let r = io::BufReader::new(f);
-            for line in r.lines() {
-                if let Ok(s) = line {
-                    let parse_result = parse_line(&s);
-                    if let Ok(pl) = parse_result {
-                        let grep_matches = greps.iter().all(|g| g.matches(&pl));
-                        if greps.is_empty() || grep_matches {
-                            let output_line = fields.iter().fold(String::new(), |acc, field| {
-                                if acc.len() > 0 {
-                                    acc + delimiter + quoted_field(&pl, field, quote).as_str()
-                                }
-                                else {
-                                    quoted_field(&pl, field, quote)
-                                }
-                            });
-                            println!("{0}", output_line);
-                        }
-                    }
-                }
-            }
+            process_lines(fields, delimiter, greps, quote, r.lines());
         }
         Err(e) => {
             println!("Error: {}: {}", file, e);
@@ -186,6 +200,6 @@ fn main() {
     let greps: Vec<Grep> = greps.into_iter().map(|r| r.unwrap()).collect();
     
     for file in matches.free {
-        process(&fields, &delimiter, &greps, &quote, &file);
+        process_file(&fields, &delimiter, &greps, &quote, &file);
     }
 }
