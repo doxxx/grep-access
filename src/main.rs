@@ -1,3 +1,7 @@
+// Modules in this crate
+mod logline;
+mod grep;
+
 #[macro_use]
 extern crate lazy_static;
 extern crate getopts;
@@ -12,109 +16,11 @@ use getopts::Options;
 use getopts::HasArg;
 use getopts::Occur;
 
-use regex::Regex;
-
-struct LogLine {
-    ip_address: String,
-    identity: String,
-    user: String,
-    timestamp: String,
-    request_line: String,
-    status_code: String,
-    size: String,
-    referer: String,
-    user_agent: String,
-}
-
-#[derive(Debug)]
-enum Error {
-    NoSuchField,
-}
-
-impl LogLine {
-    fn get_field(&self, field: &str) -> Result<&str, Error> {
-        match field {
-            "address" => Ok(&self.ip_address),
-            "identity" => Ok(&self.identity),
-            "user" => Ok(&self.user),
-            "timestamp" => Ok(&self.timestamp),
-            "request" => Ok(&self.request_line),
-            "status" => Ok(&self.status_code),
-            "size" => Ok(&self.size),
-            "referer" => Ok(&self.referer),
-            "user_agent" => Ok(&self.user_agent),
-            _ => Err(Error::NoSuchField),
-        }
-    }
-}
-
-struct Grep {
-    field: String,
-    pattern: Regex,
-}
-
-fn parse_grep(s: &str) -> Result<Grep, ParseError> {
-    let fp = s.find(':')
-        .map(|i| s.split_at(i))
-        .ok_or("invalid grep option")
-        .map(|(f, p)| (f, &p[1..]));
-
-    let grep = fp.and_then(|(field, pattern)| {
-        Regex::new(&pattern)
-            .map(|r| {
-                Grep {
-                    field: String::from(field),
-                    pattern: r,
-                }
-            })
-            .map_err(|e| "Invalid grep option")
-    });
-
-    grep
-}
-
-impl Grep {
-    fn matches(&self, pl: &LogLine) -> bool {
-        pl.get_field(&self.field).map(|v| self.pattern.is_match(v)).expect("invalid grep field")
-    }
-}
-
-type ParseError = &'static str;
-
-fn parse_line(line: &str) -> Result<LogLine, ParseError> {
-    lazy_static! {
-        static ref LINE_RE: Regex = Regex::new(
-            "^(.+?) \
-             (.+?) \
-             (.+?) \
-             \\[(.+?)\\] \
-             \"(.+?)\" \
-             (.+?) \
-             (.+?)\
-             (?: \"(.+?)\")?\
-             (?: \"(.+?)\")?$"
-        ).unwrap();
-    }
-
-    let parts = LINE_RE.captures(line).unwrap();
-    if parts.len() < 7 {
-        return Err("invalid line");
-    }
-
-    let result = LogLine {
-        ip_address: String::from(parts.at(1).unwrap()),
-        identity: String::from(parts.at(2).unwrap()),
-        user: String::from(parts.at(3).unwrap()),
-        timestamp: String::from(parts.at(4).unwrap()),
-        request_line: String::from(parts.at(5).unwrap()),
-        status_code: String::from(parts.at(6).unwrap()),
-        size: String::from(parts.at(7).unwrap()),
-        referer: String::from(parts.at(8).unwrap_or("")),
-        user_agent: String::from(parts.at(9).unwrap_or("")),
-    };
-
-    return Ok(result);
-}
+use logline::LogLine;
+use logline::parse_line;
+use logline::ParseError;
+use grep::Grep;
+use grep::parse_grep;
 
 fn quoted_field(pl: &LogLine, field: &str, quote: &str) -> String {
     String::from(pl.get_field(field)
