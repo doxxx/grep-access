@@ -1,17 +1,17 @@
 use regex::Regex;
 
+use AppError;
 use logline::LogLine;
-use logline::ParseError;
 
 pub struct Grep {
     pub field: String,
     pub pattern: Regex,
 }
 
-pub fn parse_grep(s: &str) -> Result<Grep, ParseError> {
+pub fn parse_grep(s: &str) -> Result<Grep, AppError> {
     let fp = s.find(':')
         .map(|i| s.split_at(i))
-        .ok_or("invalid grep option")
+        .ok_or(AppError::Parse("invalid grep option"))
         .map(|(f, p)| (f, &p[1..]));
 
     let grep = fp.and_then(|(field, pattern)| {
@@ -22,7 +22,7 @@ pub fn parse_grep(s: &str) -> Result<Grep, ParseError> {
                     pattern: r,
                 }
             })
-            .map_err(|e| "Invalid grep option")
+            .map_err(AppError::Regex)
     });
 
     grep
@@ -30,7 +30,7 @@ pub fn parse_grep(s: &str) -> Result<Grep, ParseError> {
 
 impl Grep {
     pub fn matches(&self, pl: &LogLine) -> bool {
-        pl.get_field(&self.field).map(|v| self.pattern.is_match(v)).expect("invalid grep field")
+        self.pattern.is_match(pl.get_field(&self.field))
     }
 }
 

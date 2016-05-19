@@ -1,4 +1,5 @@
 use regex::Regex;
+use AppError;
 
 pub struct LogLine {
     pub ip_address: String,
@@ -12,31 +13,24 @@ pub struct LogLine {
     pub user_agent: String,
 }
 
-#[derive(Debug)]
-pub enum Error {
-    NoSuchField,
-}
-
 impl LogLine {
-    pub fn get_field(&self, field: &str) -> Result<&str, Error> {
+    pub fn get_field(&self, field: &str) -> &str {
         match field {
-            "address" => Ok(&self.ip_address),
-            "identity" => Ok(&self.identity),
-            "user" => Ok(&self.user),
-            "timestamp" => Ok(&self.timestamp),
-            "request" => Ok(&self.request_line),
-            "status" => Ok(&self.status_code),
-            "size" => Ok(&self.size),
-            "referer" => Ok(&self.referer),
-            "user_agent" => Ok(&self.user_agent),
-            _ => Err(Error::NoSuchField),
+            "address" => &self.ip_address,
+            "identity" => &self.identity,
+            "user" => &self.user,
+            "timestamp" => &self.timestamp,
+            "request" => &self.request_line,
+            "status" => &self.status_code,
+            "size" => &self.size,
+            "referer" => &self.referer,
+            "user_agent" => &self.user_agent,
+            _ => panic!("invalid field")
         }
     }
 }
 
-pub type ParseError = &'static str;
-
-pub fn parse_line(line: &str) -> Result<LogLine, ParseError> {
+pub fn parse_line(line: &str) -> Result<LogLine, AppError> {
     lazy_static! {
         static ref LINE_RE: Regex = Regex::new(
             "^(.+?) \
@@ -53,7 +47,7 @@ pub fn parse_line(line: &str) -> Result<LogLine, ParseError> {
 
     let parts = LINE_RE.captures(line).unwrap();
     if parts.len() < 7 {
-        return Err("invalid line");
+        return Err(AppError::Parse("invalid log line"));
     }
 
     let result = LogLine {

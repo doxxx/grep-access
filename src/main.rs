@@ -18,14 +18,19 @@ use getopts::Occur;
 
 use logline::LogLine;
 use logline::parse_line;
-use logline::ParseError;
 use grep::Grep;
 use grep::parse_grep;
 
+#[derive(Debug)]
+pub enum AppError {
+    Io(io::Error),
+    Parse(&'static str),
+    Regex(regex::Error),
+    UnknownField(String),
+}
+
 fn quoted_field(pl: &LogLine, field: &str, quote: &str) -> String {
-    String::from(pl.get_field(field)
-        .map(|v| format!("{1}{0}{1}", v, quote))
-        .expect("invalid field"))
+    String::from(format!("{1}{0}{1}", pl.get_field(field), quote))
 }
 
 fn join_fields(fields: &[String], delimiter: &str, quote: &str, pl: LogLine) -> String {
@@ -137,7 +142,7 @@ fn main() {
         .map(|s| String::from(s))
         .collect();
     let delimiter: String = matches.opt_str("d").unwrap_or(default_delimiter);
-    let greps: Vec<Result<Grep, ParseError>> =
+    let greps: Vec<Result<Grep, AppError>> =
         matches.opt_strs("g").iter().map(|s| parse_grep(&s)).collect();
     let quote: String = matches.opt_str("q").unwrap_or(default_quote);
 
