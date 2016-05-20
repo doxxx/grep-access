@@ -92,12 +92,12 @@ fn main() {
     let mut opts = Options::new();
     opts.optflag("h", "help", "print this help menu");
     opts.opt("f",
-             "fields",
-             "comma-separated list of fields to display: address, identity, user, timestamp, \
-              request, status, size, referer, user_agent; defaults to all",
-             "<FIELDS>",
+             "field",
+             "field to display: address, identity, user, timestamp, request, status, size, \
+              referer, user_agent; can be specified more than once to display multiple fields",
+             "<FIELD>",
              HasArg::Yes,
-             Occur::Optional);
+             Occur::Multi);
     opts.opt("d",
              "delimiter",
              "delimiter used to separate fields; defaults to '|'",
@@ -131,20 +131,31 @@ fn main() {
         return;
     }
 
-    let default_fields = String::from("address,identity,user,timestamp,request,status,size,\
-                                       referer,user_agent");
-    let default_delimiter = String::from("|");
-    let default_quote = String::from("");
+    let all_fields = vec!["address",
+                          "identity",
+                          "user",
+                          "timestamp",
+                          "request",
+                          "status",
+                          "size",
+                          "referer",
+                          "user_agent"];
+    let fields: Vec<String> = if matches.opt_present("f") {
+        matches.opt_strs("f")
+    } else {
+        all_fields.iter().map(|s| String::from(*s)).collect()
+    };
+    for field in &fields {
+        if !all_fields.contains(&field.as_str()) {
+            println!("{}: invalid field: {}", program, field);
+            return;
+        }
+    }
 
-    let fields: Vec<String> = matches.opt_str("f")
-        .unwrap_or(default_fields)
-        .split(',')
-        .map(|s| String::from(s))
-        .collect();
-    let delimiter: String = matches.opt_str("d").unwrap_or(default_delimiter);
+    let delimiter: String = matches.opt_str("d").unwrap_or(String::from("|"));
+
     let greps: Vec<Result<Grep, AppError>> =
         matches.opt_strs("g").iter().map(|s| parse_grep(&s)).collect();
-    let quote: String = matches.opt_str("q").unwrap_or(default_quote);
 
     if greps.iter().any(|g| g.is_err()) {
         println!("{}: invalid grep option", program);
@@ -152,6 +163,8 @@ fn main() {
     }
 
     let greps: Vec<Grep> = greps.into_iter().map(|r| r.unwrap()).collect();
+
+    let quote: String = matches.opt_str("q").unwrap_or(String::new());
 
     for file in matches.free {
         process_file(&fields, &delimiter, &greps, &quote, &file);
