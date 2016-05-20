@@ -192,8 +192,7 @@ fn main() {
     if matches.free.is_empty() {
         let r = io::BufReader::new(io::stdin());
         process_lines(&fields, &delimiter, &greps, invert_match, &quote, r.lines())
-    }
-    else {
+    } else {
         for arg in matches.free {
             process_file(&fields, &delimiter, &greps, invert_match, &quote, &arg);
         }
