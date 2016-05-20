@@ -147,7 +147,7 @@ fn main() {
         }
     };
 
-    if matches.opt_present("h") || matches.free.is_empty() {
+    if matches.opt_present("h") {
         print_usage(&program, opts);
         return;
     }
@@ -189,7 +189,13 @@ fn main() {
 
     let quote: String = matches.opt_str("q").unwrap_or(String::new());
 
-    for file in matches.free {
-        process_file(&fields, &delimiter, &greps, invert_match, &quote, &file);
+    if matches.free.is_empty() {
+        let r = io::BufReader::new(io::stdin());
+        process_lines(&fields, &delimiter, &greps, invert_match, &quote, r.lines())
+    }
+    else {
+        for arg in matches.free {
+            process_file(&fields, &delimiter, &greps, invert_match, &quote, &arg);
+        }
     }
 }
