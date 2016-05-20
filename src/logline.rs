@@ -14,6 +14,41 @@ pub struct LogLine {
 }
 
 impl LogLine {
+    pub fn parse(line: &str) -> Result<LogLine, AppError> {
+        lazy_static! {
+            static ref LINE_RE: Regex = Regex::new(
+                "^(.+?) \
+                (.+?) \
+                (.+?) \
+                \\[(.+?)\\] \
+                \"(.+?)\" \
+                (.+?) \
+                (.+?)\
+                (?: \"(.+?)\")?\
+                (?: \"(.+?)\")?$"
+            ).unwrap();
+        }
+
+        let parts = LINE_RE.captures(line).unwrap();
+        if parts.len() < 7 {
+            return Err(AppError::Parse("invalid log line"));
+        }
+
+        let result = LogLine {
+            ip_address: String::from(parts.at(1).unwrap()),
+            identity: String::from(parts.at(2).unwrap()),
+            user: String::from(parts.at(3).unwrap()),
+            timestamp: String::from(parts.at(4).unwrap()),
+            request_line: String::from(parts.at(5).unwrap()),
+            status_code: String::from(parts.at(6).unwrap()),
+            size: String::from(parts.at(7).unwrap()),
+            referer: String::from(parts.at(8).unwrap_or("")),
+            user_agent: String::from(parts.at(9).unwrap_or("")),
+        };
+
+        return Ok(result);
+    }
+
     pub fn get_field(&self, field: &str) -> &str {
         match field {
             "address" => &self.ip_address,
@@ -28,39 +63,4 @@ impl LogLine {
             _ => panic!("invalid field"),
         }
     }
-}
-
-pub fn parse_line(line: &str) -> Result<LogLine, AppError> {
-    lazy_static! {
-        static ref LINE_RE: Regex = Regex::new(
-            "^(.+?) \
-             (.+?) \
-             (.+?) \
-             \\[(.+?)\\] \
-             \"(.+?)\" \
-             (.+?) \
-             (.+?)\
-             (?: \"(.+?)\")?\
-             (?: \"(.+?)\")?$"
-        ).unwrap();
-    }
-
-    let parts = LINE_RE.captures(line).unwrap();
-    if parts.len() < 7 {
-        return Err(AppError::Parse("invalid log line"));
-    }
-
-    let result = LogLine {
-        ip_address: String::from(parts.at(1).unwrap()),
-        identity: String::from(parts.at(2).unwrap()),
-        user: String::from(parts.at(3).unwrap()),
-        timestamp: String::from(parts.at(4).unwrap()),
-        request_line: String::from(parts.at(5).unwrap()),
-        status_code: String::from(parts.at(6).unwrap()),
-        size: String::from(parts.at(7).unwrap()),
-        referer: String::from(parts.at(8).unwrap_or("")),
-        user_agent: String::from(parts.at(9).unwrap_or("")),
-    };
-
-    return Ok(result);
 }

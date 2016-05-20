@@ -17,7 +17,6 @@ use getopts::HasArg;
 use getopts::Occur;
 
 use logline::LogLine;
-use logline::parse_line;
 use grep::Grep;
 
 #[derive(Debug)]
@@ -59,7 +58,7 @@ fn process_lines<B>(fields: &[String],
 {
     for line in lines {
         if let Ok(s) = line {
-            let parse_result = parse_line(&s);
+            let parse_result = LogLine::parse(&s);
             if let Ok(pl) = parse_result {
                 process_line(fields, delimiter, greps, quote, pl)
             }
