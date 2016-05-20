@@ -19,7 +19,6 @@ use getopts::Occur;
 use logline::LogLine;
 use logline::parse_line;
 use grep::Grep;
-use grep::parse_grep;
 
 #[derive(Debug)]
 pub enum AppError {
@@ -155,7 +154,7 @@ fn main() {
     let delimiter: String = matches.opt_str("d").unwrap_or(String::from("|"));
 
     let greps: Vec<Result<Grep, AppError>> =
-        matches.opt_strs("g").iter().map(|s| parse_grep(&s)).collect();
+        matches.opt_strs("g").iter().map(|s| Grep::parse(&s)).collect();
 
     if greps.iter().any(|g| g.is_err()) {
         println!("{}: invalid grep option", program);
