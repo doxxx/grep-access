@@ -1,4 +1,4 @@
-# grep-access
+# grep-access [![Build Status](https://travis-ci.org/doxxx/grep-access.svg?branch=master)](https://travis-ci.org/doxxx/grep-access)
 
 A grep-like tool for filtering Apache httpd access logs. It supports both the Common and Combined log formats.
 
