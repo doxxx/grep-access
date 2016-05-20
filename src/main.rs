@@ -41,9 +41,19 @@ fn join_fields(fields: &[String], delimiter: &str, quote: &str, pl: LogLine) -> 
     })
 }
 
-fn process_line(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, pl: LogLine) {
+fn process_line(fields: &[String],
+                delimiter: &str,
+                greps: &[Grep],
+                invert_match: bool,
+                quote: &str,
+                pl: LogLine) {
     let grep_matches = greps.iter().all(|g| g.matches(&pl));
-    if greps.is_empty() || grep_matches {
+    let matches = if invert_match {
+        !grep_matches
+    } else {
+        grep_matches
+    };
+    if greps.is_empty() || matches {
         let output_line = join_fields(fields, delimiter, quote, pl);
         println!("{0}", output_line);
     }
@@ -52,6 +62,7 @@ fn process_line(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str,
 fn process_lines<B>(fields: &[String],
                     delimiter: &str,
                     greps: &[Grep],
+                    invert_match: bool,
                     quote: &str,
                     lines: io::Lines<B>)
     where B: BufRead + Sized
@@ -60,17 +71,22 @@ fn process_lines<B>(fields: &[String],
         if let Ok(s) = line {
             let parse_result = LogLine::parse(&s);
             if let Ok(pl) = parse_result {
-                process_line(fields, delimiter, greps, quote, pl)
+                process_line(fields, delimiter, greps, invert_match, quote, pl)
             }
         }
     }
 }
 
-fn process_file(fields: &[String], delimiter: &str, greps: &[Grep], quote: &str, file: &str) {
+fn process_file(fields: &[String],
+                delimiter: &str,
+                greps: &[Grep],
+                invert_match: bool,
+                quote: &str,
+                file: &str) {
     match File::open(file) {
         Ok(f) => {
             let r = io::BufReader::new(f);
-            process_lines(fields, delimiter, greps, quote, r.lines());
+            process_lines(fields, delimiter, greps, invert_match, quote, r.lines());
         }
         Err(e) => {
             println!("Error: {}: {}", file, e);
@@ -111,10 +127,17 @@ fn main() {
     opts.opt("g",
              "grep",
              "outputs only those lines which match the given regex for the given field; multiple \
-              options are AND'ed together'",
+              options are AND'ed together",
              "<FIELD:REGEX>",
              HasArg::Yes,
              Occur::Multi);
+    opts.opt("v",
+             "invert-match",
+             "Displayed lines are those which do not match the patterns specified by the -f \
+              option",
+             "",
+             HasArg::No,
+             Occur::Optional);
 
     let matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
@@ -162,9 +185,11 @@ fn main() {
 
     let greps: Vec<Grep> = greps.into_iter().map(|r| r.unwrap()).collect();
 
+    let invert_match: bool = matches.opt_present("v");
+
     let quote: String = matches.opt_str("q").unwrap_or(String::new());
 
     for file in matches.free {
-        process_file(&fields, &delimiter, &greps, &quote, &file);
+        process_file(&fields, &delimiter, &greps, invert_match, &quote, &file);
     }
 }

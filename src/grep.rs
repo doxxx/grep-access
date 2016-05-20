@@ -28,7 +28,7 @@ impl Grep {
 
         grep
     }
-    
+
     pub fn matches(&self, pl: &LogLine) -> bool {
         self.pattern.is_match(pl.get_field(&self.field))
     }
