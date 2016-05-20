@@ -33,4 +33,3 @@ impl Grep {
         self.pattern.is_match(pl.get_field(&self.field))
     }
 }
-

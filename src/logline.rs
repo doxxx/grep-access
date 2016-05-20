@@ -25,7 +25,7 @@ impl LogLine {
             "size" => &self.size,
             "referer" => &self.referer,
             "user_agent" => &self.user_agent,
-            _ => panic!("invalid field")
+            _ => panic!("invalid field"),
         }
     }
 }
