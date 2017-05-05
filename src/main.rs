@@ -22,71 +22,62 @@ use grep::Grep;
 #[derive(Debug)]
 pub enum AppError {
     Io(io::Error),
-    Parse(&'static str),
+    Parse(String),
     Regex(regex::Error),
     UnknownField(String),
+}
+
+struct Config {
+    pub fields: Vec<String>,
+    pub delimiter: String,
+    pub greps: Vec<Grep>,
+    pub invert_match: bool,
+    pub quote: String,
 }
 
 fn quoted_field(pl: &LogLine, field: &str, quote: &str) -> String {
     String::from(format!("{1}{0}{1}", pl.get_field(field), quote))
 }
 
-fn join_fields(fields: &[String], delimiter: &str, quote: &str, pl: LogLine) -> String {
-    fields.iter().fold(String::new(), |acc, field| {
-        if acc.len() > 0 {
-            acc + delimiter + quoted_field(&pl, field, quote).as_str()
-        } else {
-            quoted_field(&pl, field, quote)
-        }
+fn join_fields(config: &Config, pl: LogLine) -> String {
+    config.fields.iter().fold(String::new(), |acc, field| if acc.len() > 0 {
+        acc + &config.delimiter + quoted_field(&pl, field, &config.quote).as_str()
+    } else {
+        quoted_field(&pl, field, &config.quote)
     })
 }
 
-fn process_line(fields: &[String],
-                delimiter: &str,
-                greps: &[Grep],
-                invert_match: bool,
-                quote: &str,
-                pl: LogLine) {
-    let grep_matches = greps.iter().all(|g| g.matches(&pl));
-    let matches = if invert_match {
+fn process_line(config: &Config, pl: LogLine) {
+    let grep_matches = config.greps.iter().all(|g| g.matches(&pl));
+    let matches = if config.invert_match {
         !grep_matches
     } else {
         grep_matches
     };
-    if greps.is_empty() || matches {
-        let output_line = join_fields(fields, delimiter, quote, pl);
+    if config.greps.is_empty() || matches {
+        let output_line = join_fields(config, pl);
         println!("{0}", output_line);
     }
 }
 
-fn process_lines<B>(fields: &[String],
-                    delimiter: &str,
-                    greps: &[Grep],
-                    invert_match: bool,
-                    quote: &str,
-                    lines: io::Lines<B>)
+fn process_lines<B>(config: &Config, lines: io::Lines<B>)
     where B: BufRead + Sized
 {
     for line in lines {
         if let Ok(s) = line {
             let parse_result = LogLine::parse(&s);
             if let Ok(pl) = parse_result {
-                process_line(fields, delimiter, greps, invert_match, quote, pl)
+                process_line(config, pl)
             }
         }
     }
 }
 
-fn process_file(fields: &[String],
-                delimiter: &str,
-                greps: &[Grep],
-                invert_match: bool,
-                quote: &str,
-                file: &str) {
+fn process_file(config: &Config, file: &str) {
     match File::open(file) {
         Ok(f) => {
             let r = io::BufReader::new(f);
-            process_lines(fields, delimiter, greps, invert_match, quote, r.lines());
+            process_lines(config, r.lines());
         }
         Err(e) => {
             println!("Error: {}: {}", file, e);
@@ -161,22 +152,17 @@ fn main() {
                           "size",
                           "referer",
                           "user_agent"];
-    let fields: Vec<String> = if matches.opt_present("f") {
+
+    let fields = if matches.opt_present("f") {
         matches.opt_strs("f")
     } else {
         all_fields.iter().map(|s| String::from(*s)).collect()
     };
-    for field in &fields {
-        if !all_fields.contains(&field.as_str()) {
-            println!("{}: invalid field: {}", program, field);
-            return;
-        }
-    }
 
-    let delimiter: String = matches.opt_str("d").unwrap_or(String::from("|"));
-
-    let greps: Vec<Result<Grep, AppError>> =
-        matches.opt_strs("g").iter().map(|s| Grep::parse(&s)).collect();
+    let greps: Vec<Result<Grep, AppError>> = matches.opt_strs("g")
+        .iter()
+        .map(|s| Grep::parse(&s))
+        .collect();
 
     if greps.iter().any(|g| g.is_err()) {
         println!("{}: invalid grep option", program);
@@ -185,16 +171,27 @@ fn main() {
 
     let greps: Vec<Grep> = greps.into_iter().map(|r| r.unwrap()).collect();
 
-    let invert_match: bool = matches.opt_present("v");
+    let config = Config {
+        fields: fields,
+        delimiter: matches.opt_str("d").unwrap_or(String::from("|")),
+        greps: greps,
+        invert_match: matches.opt_present("v"),
+        quote: matches.opt_str("q").unwrap_or(String::new()),
+    };
 
-    let quote: String = matches.opt_str("q").unwrap_or(String::new());
+    for field in &config.fields {
+        if !all_fields.contains(&field.as_str()) {
+            println!("{}: invalid field: {}", program, field);
+            return;
+        }
+    }
 
     if matches.free.is_empty() {
         let r = io::BufReader::new(io::stdin());
-        process_lines(&fields, &delimiter, &greps, invert_match, &quote, r.lines())
+        process_lines(&config, r.lines())
     } else {
         for arg in matches.free {
-            process_file(&fields, &delimiter, &greps, invert_match, &quote, &arg);
+            process_file(&config, &arg);
         }
     }
 }

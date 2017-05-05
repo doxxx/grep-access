@@ -31,7 +31,7 @@ impl LogLine {
 
         let parts = LINE_RE.captures(line).unwrap();
         if parts.len() < 7 {
-            return Err(AppError::Parse("invalid log line"));
+            return Err(AppError::Parse(String::from("invalid log line")));
         }
 
         let result = LogLine {
